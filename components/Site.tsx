@@ -87,13 +87,36 @@ export default function Site({ photos, source }: Props) {
 
       // loader, then the hero text arrives while the 3D field fades in
       const tl = gsap.timeline();
-      tl.to(".loader__bar", { scaleX: 1, duration: reduce ? 0.2 : 1.5, ease: "power2.inOut" })
-        .to(".loader__name", { opacity: 0, duration: 0.3 })
+      // always play the intro; people with reduced motion get a shorter, calmer version instead of none
+      const k = reduce ? 0.6 : 1;
+      const loaderEl = root.current!.querySelector<HTMLElement>(".loader")!;
+      const status = root.current!.querySelector<HTMLElement>(".loader__status")!;
+      tl.set(".loader__bk", { opacity: 0, scale: 1.8 })
+        // focus pull: each letter sharpens out of a heavy blur, like a lens finding its subject
+        .fromTo(
+          ".loader__ch",
+          { opacity: 0, filter: "blur(30px)", scale: 1.3 },
+          { opacity: 1, filter: "blur(0px)", scale: 1, duration: 1.3 * k, ease: "power3.out", stagger: 0.1 * k },
+          0
+        )
+        // viewfinder brackets close in around the word
+        .to(".loader__bk", { opacity: 1, scale: 1, duration: 0.8 * k, ease: "power3.out", stagger: 0.05 * k }, 0.25 * k)
+        // focus locks
+        .add(() => {
+          loaderEl.classList.add("is-lock");
+          status.textContent = "Sharp";
+        }, 1.45 * k)
+        .to(".loader__bk", { scale: 0.94, duration: 0.14 * k, yoyo: true, repeat: 1, ease: "power2.inOut" }, 1.45 * k)
+        // shutter: flash, then the screen splits open like two blades
+        .to(".loader__flash", { opacity: 1, duration: 0.07 * k }, 1.95 * k)
         .add(() => {
           (window as unknown as { __introStarted?: boolean }).__introStarted = true;
           window.dispatchEvent(new Event("intro:start"));
         })
-        .to(".loader", { yPercent: -100, duration: reduce ? 0.2 : 1, ease: "expo.inOut" }, "<")
+        .to(".loader__flash", { opacity: 0, duration: 0.55 * k, ease: "power2.out" })
+        .to(".loader__content", { opacity: 0, duration: 0.3 * k }, "<")
+        .to(".loader__panel--top", { yPercent: -100, duration: 1.1 * k, ease: "expo.inOut" }, "<0.05")
+        .to(".loader__panel--bot", { yPercent: 100, duration: 1.1 * k, ease: "expo.inOut" }, "<")
         .from(".hero__line > span", { yPercent: 110, duration: 1.2, ease: "expo.out", stagger: 0.1 }, "-=0.5")
         .from(".hero__lede, .hero__cta, .hero__strip, .nav, .dock", { opacity: 0, y: 12, duration: 0.8, stagger: 0.08 }, "-=0.7")
         .add(() => lenis.start());
@@ -211,9 +234,24 @@ export default function Site({ photos, source }: Props) {
   return (
     <div ref={root}>
       {/* loader */}
-      <div className="loader theme-dark">
-        <span className="loader__name">{contact.name}</span>
-        <i className="loader__bar" />
+      <div className="loader" aria-hidden>
+        <div className="loader__panel loader__panel--top theme-dark" />
+        <div className="loader__panel loader__panel--bot theme-dark" />
+        <div className="loader__content theme-dark">
+          <div className="loader__frame">
+            <i className="loader__bk loader__bk--tl" />
+            <i className="loader__bk loader__bk--tr" />
+            <i className="loader__bk loader__bk--bl" />
+            <i className="loader__bk loader__bk--br" />
+            <p className="loader__word">
+              {"Sahel".split("").map((ch, i) => (
+                <span className="loader__ch" key={i}>{ch}</span>
+              ))}
+            </p>
+          </div>
+          <p className="loader__status">Focusing</p>
+        </div>
+        <div className="loader__flash" />
       </div>
 
       {/* navigation */}
